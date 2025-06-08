@@ -3,9 +3,10 @@ from pathlib import Path
 import logging
 import ee
 from raster_utils import export_dem_to_drive
+from settings import DATA_FOLDER
 
 logging.basicConfig(level=logging.INFO)
-data_folder = Path(__file__).parents[1] / "data"
+
 
 google_earth_engine_project_name = "rainfallanalysis-462313"
 
@@ -16,7 +17,7 @@ def main():
     ee.Authenticate()
     ee.Initialize(project=google_earth_engine_project_name)
 
-    boundaries_gpkg = data_folder / "Frankfurt.gpkg"
+    boundaries_gpkg = DATA_FOLDER / "Frankfurt.gpkg"
 
     logging.info(f"Starting to load earth engine DEM data to drive with boundaries based on vector {boundaries_gpkg}")
 
