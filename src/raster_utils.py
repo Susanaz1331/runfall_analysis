@@ -79,7 +79,7 @@ def compute_rainfall_statistics(polygon_location_file: Path):
 
 
     def reduce_to_feature(img):
-        buffered = ee_polygon.buffer(3000)
+        buffered = ee_polygon.buffer(3000) # increase if too many values are missing
 
         stats = img.reduceRegion(
             reducer=ee.Reducer.mean(),
@@ -99,5 +99,6 @@ def compute_rainfall_statistics(polygon_location_file: Path):
     df = df.rename(columns={'precipitation': 'monthly_precipitation_mm'})
 
     # Save to CSV
-    df.to_csv(DATA_FOLDER/f"monthly_precipitation_{polygon_location_file.name}.csv", index=False)
-    print("CSV saved.")
+    save_file = DATA_FOLDER/f"monthly_precipitation_{polygon_location_file.name}.csv"
+    df.to_csv(save_file, index=False)
+    print(f"CSV saved in {save_file}")
