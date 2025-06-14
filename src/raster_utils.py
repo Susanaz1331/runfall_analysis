@@ -79,9 +79,11 @@ def compute_rainfall_statistics(polygon_location_file: Path):
 
 
     def reduce_to_feature(img):
+        buffered = ee_polygon.buffer(3000)
+
         stats = img.reduceRegion(
             reducer=ee.Reducer.mean(),
-            geometry=ee_polygon,
+            geometry=buffered,
             scale=5566, # cf pixel size see https://developers.google.com/earth-engine/datasets/catalog/UCSB-CHG_CHIRPS_DAILY#bands
             maxPixels=1e9
         )
