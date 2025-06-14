@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import List
 import pandas as pd
 import ee
@@ -7,6 +8,8 @@ from shapely.ops import unary_union
 from pathlib import Path
 
 from settings import DATA_FOLDER
+
+logging.basicConfig(level=logging.INFO)
 
 def export_dem_to_drive(polygon_location_file: Path) -> None:
     nasadem = ee.Image('NASA/NASADEM_HGT/001')
@@ -50,7 +53,7 @@ def monthly_sum(year:str, month:str, ee_image_data, band:str)-> List[ee.image.Im
     return total_precip
 
 
-def compute_rainfall_statistics(polygon_location_file: Path):
+def compute_rainfall_statistics_monthly(polygon_location_file: Path):
 
     end_date = datetime.date.today()
     start_date = end_date.replace(year=end_date.year - 10)
@@ -101,4 +104,44 @@ def compute_rainfall_statistics(polygon_location_file: Path):
     # Save to CSV
     save_file = DATA_FOLDER/f"monthly_precipitation_{polygon_location_file.name}.csv"
     df.to_csv(save_file, index=False)
-    print(f"CSV saved in {save_file}")
+    logging.info(f"CSV saved in {save_file}")
+
+
+def compute_rainfall_statistics_daily(polygon_location_file: Path):
+    end_date = datetime.date.today()
+    start_date = end_date.replace(year=end_date.year - 10)
+
+    polygon_location = gpd.read_file(polygon_location_file)
+    polygon_location = polygon_location.geometry.to_list()[0]
+    merged_polygon = unary_union(polygon_location)
+    coords = list(merged_polygon.exterior.coords)
+    ee_polygon = ee.Geometry.Polygon(coords)
+
+    rainfall_daily = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY") \
+        .filterDate(str(start_date), str(end_date)) \
+        .filterBounds(ee_polygon)
+
+    def reduce_to_feature(img):
+        date = img.date().format('YYYY-MM-dd')
+        buffered = ee_polygon.buffer(3000)
+
+        stats = img.reduceRegion(
+            reducer=ee.Reducer.mean(),
+            geometry=buffered,
+            scale=5566,
+            maxPixels=1e9
+        )
+        return ee.Feature(None, stats).set('date', date)
+
+    reduced = rainfall_daily.map(reduce_to_feature)
+
+    features = reduced.getInfo()['features']
+    values = [f['properties'] for f in features]
+
+    df = pd.DataFrame(values)
+    df['date'] = pd.to_datetime(df['date'])
+    df = df.rename(columns={'precipitation': 'daily_precipitation_mm'})
+
+    save_file = DATA_FOLDER / f"daily_precipitation_{polygon_location_file.name}.csv"
+    df.to_csv(save_file, index=False)
+    logging.info(f"CSV saved in {save_file}")
